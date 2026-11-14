@@ -1,0 +1,24 @@
+#!/bin/sh
+# SecretSweep pre-commit hook (plain git hook variant).
+#
+# Install: copy this file to .git/hooks/pre-commit in your repository
+# and make it executable:
+#
+#   cp examples/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# It scans the worktree and blocks the commit when SecretSweep finds a
+# secret at or above the fail-on severity (default: high). The
+# secretsweep binary must be on your PATH.
+
+set -e
+
+if ! command -v secretsweep >/dev/null 2>&1; then
+    echo "secretsweep: binary not found on PATH, skipping secret scan" >&2
+    echo "secretsweep: install it with: cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.0.0" >&2
+    exit 0
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+secretsweep --fail-on high .

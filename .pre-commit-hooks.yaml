@@ -1,0 +1,8 @@
+- id: secretsweep
+  name: SecretSweep
+  description: Scan the worktree for leaked secrets with SecretSweep.
+  entry: secretsweep
+  language: system
+  pass_filenames: false
+  args: ["--fail-on", "high", "."]
+  stages: [pre-commit]
