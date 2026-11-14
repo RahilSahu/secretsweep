@@ -54,22 +54,12 @@ impl Baseline {
     pub fn key_set(&self) -> HashSet<(String, String, String)> {
         self.entries
             .iter()
-            .map(|e| {
-                (
-                    e.rule_id.clone(),
-                    e.file.clone(),
-                    e.fingerprint.clone(),
-                )
-            })
+            .map(|e| (e.rule_id.clone(), e.file.clone(), e.fingerprint.clone()))
             .collect()
     }
 
     pub fn contains_raw(keys: &HashSet<(String, String, String)>, f: &Finding) -> bool {
-        keys.contains(&(
-            f.rule_id.clone(),
-            f.file.clone(),
-            f.fingerprint.clone(),
-        ))
+        keys.contains(&(f.rule_id.clone(), f.file.clone(), f.fingerprint.clone()))
     }
 
     pub fn load(path: &Path) -> Result<Baseline, String> {

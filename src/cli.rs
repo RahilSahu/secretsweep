@@ -12,8 +12,8 @@ use crate::finding::Severity;
 use crate::git_scan;
 use crate::report::{self, ReportData};
 use crate::rules;
-use crate::scanner::{self, ScanOptions, ScanStats};
 use crate::scanline::LineScanner;
+use crate::scanner::{self, ScanOptions, ScanStats};
 use clap::{Parser, ValueEnum};
 use std::path::{Path, PathBuf};
 

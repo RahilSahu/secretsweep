@@ -63,9 +63,20 @@ fn assignment_regex() -> &'static Regex {
 
 fn key_is_secretish(key: &str) -> bool {
     let k = key.to_ascii_lowercase();
-    ["password", "passwd", "secret", "token", "api_key", "apikey", "api-key", "auth", "credential", "private"]
-        .iter()
-        .any(|w| k.contains(w))
+    [
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "api-key",
+        "auth",
+        "credential",
+        "private",
+    ]
+    .iter()
+    .any(|w| k.contains(w))
 }
 
 /// Extract entropy candidates from one line: quoted literals plus
@@ -128,14 +139,20 @@ fn is_uuid(token: &str) -> bool {
     let parts: Vec<&str> = token.split('-').collect();
     parts.len() == 5
         && parts.iter().map(|p| p.len()).collect::<Vec<_>>() == vec![8, 4, 4, 4, 12]
-        && parts.iter().all(|p| p.chars().all(|c| c.is_ascii_hexdigit()))
+        && parts
+            .iter()
+            .all(|p| p.chars().all(|c| c.is_ascii_hexdigit()))
 }
+
+const DIGEST_PREFIXES: &[&str] = &["sha1-", "sha256-", "sha512-", "md5-", "sha224-", "sha384-"];
 
 fn preceded_by_digest_name(line: &str, start: usize) -> bool {
     let before = &line[..start.min(line.len())];
-    ["sha1-", "sha256-", "sha512-", "md5-", "sha224-", "sha384-"]
-        .iter()
-        .any(|p| before.ends_with(p))
+    DIGEST_PREFIXES.iter().any(|p| before.ends_with(p))
+}
+
+fn starts_with_digest_name(token: &str) -> bool {
+    DIGEST_PREFIXES.iter().any(|p| token.starts_with(p))
 }
 
 /// Evaluate one candidate. Returns the measured entropy when the
@@ -145,7 +162,7 @@ pub fn evaluate(line: &str, cand: &Candidate, base_threshold: f64) -> Option<f64
     if looks_like_placeholder(token) || is_uuid(token) {
         return None;
     }
-    if preceded_by_digest_name(line, cand.start) {
+    if preceded_by_digest_name(line, cand.start) || starts_with_digest_name(token) {
         return None;
     }
     let is_hex = token.chars().all(|c| c.is_ascii_hexdigit());
@@ -193,7 +210,9 @@ mod tests {
     fn candidates_include_assignments_and_quotes() {
         let line = r#"api_token = "Xk9mQ2vZ8pL4nR7wT1s" and other = 'plainvalue123456789'"#;
         let cands = find_candidates(line);
-        assert!(cands.iter().any(|c| c.token == "Xk9mQ2vZ8pL4nR7wT1s" && c.secret_context));
+        assert!(cands
+            .iter()
+            .any(|c| c.token == "Xk9mQ2vZ8pL4nR7wT1s" && c.secret_context));
         assert!(cands.iter().any(|c| c.token == "plainvalue123456789"));
     }
 
@@ -208,7 +227,8 @@ mod tests {
 
     #[test]
     fn digest_values_are_not_flagged() {
-        let line = "integrity sha512-Kqh7Xk9mQ2vZ8pL4nR7wT1sB5dF6gH3jK0mN9pQ2rS5tU8vW1xY4zA7bC0dE==";
+        let line =
+            "integrity sha512-Kqh7Xk9mQ2vZ8pL4nR7wT1sB5dF6gH3jK0mN9pQ2rS5tU8vW1xY4zA7bC0dE==";
         let cand = Candidate {
             start: line.find("Kqh7").unwrap(),
             end: line.len(),

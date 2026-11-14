@@ -38,7 +38,7 @@ pub struct CompiledRule {
 static COMPILED: OnceLock<Vec<CompiledRule>> = OnceLock::new();
 
 pub fn rules() -> &'static [Rule] {
-    &RULES
+    RULES
 }
 
 pub fn compiled_rules() -> &'static [CompiledRule] {
@@ -47,9 +47,8 @@ pub fn compiled_rules() -> &'static [CompiledRule] {
             .iter()
             .map(|rule| CompiledRule {
                 rule,
-                regex: Regex::new(rule.pattern).unwrap_or_else(|e| {
-                    panic!("rule {} has an invalid pattern: {e}", rule.id)
-                }),
+                regex: Regex::new(rule.pattern)
+                    .unwrap_or_else(|e| panic!("rule {} has an invalid pattern: {e}", rule.id)),
             })
             .collect()
     })

@@ -66,10 +66,7 @@ impl AllowEntry {
             }
         }
         let globs = self.globs();
-        if !globs.is_empty() && !globs.iter().any(|g| glob_match(g, &f.file)) {
-            return false;
-        }
-        true
+        globs.is_empty() || globs.iter().any(|g| glob_match(g, &f.file))
     }
 }
 
@@ -83,8 +80,8 @@ impl Config {
 pub fn load_config(path: &Path) -> Result<Config, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("cannot read config {}: {e}", path.display()))?;
-    let cfg: Config =
-        toml::from_str(&text).map_err(|e| format!("cannot parse config {}: {e}", path.display()))?;
+    let cfg: Config = toml::from_str(&text)
+        .map_err(|e| format!("cannot parse config {}: {e}", path.display()))?;
     for entry in &cfg.allowlist {
         if entry.is_empty() {
             return Err(format!(
