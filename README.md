@@ -21,9 +21,15 @@ characters of a value, plus a hash fingerprint.
 
 ## What it does
 
-- **94 pattern rules** for known providers and formats (AWS, GitHub,
+- **99 pattern rules** for known providers and formats (AWS, GitHub,
   Stripe, OpenAI, database connection strings, private key blocks, and
   many more), each with a severity and a plain-language description.
+- **Zip archive inspection**: archives are opened, not skipped as
+  opaque binaries. Text entries are scanned with the normal rules
+  (findings point at `archive.zip!/entry-name`), and an archive that
+  pairs an executable with a launcher or script file raises a
+  dedicated warning. That pairing is how a real malware lure hid its
+  payload from the v1.0 scanner.
 - **Entropy detection**: a second, heuristic engine that measures the
   Shannon entropy of candidate strings (quoted literals and assignment
   values) and flags likely random secrets that no pattern knows about.
@@ -46,7 +52,7 @@ and, for history mode, the `git` CLI.
 Install from source:
 
 ```console
-cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.0.0
+cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.1.0
 ```
 
 Or build a checkout:
@@ -86,6 +92,9 @@ Worktree mode respects `.gitignore`, skips `.git`, `node_modules`,
 `vendor`, `target` and similar generated directories, skips binary files
 and files over 1 MiB (configurable with `--max-size`, in KiB), and scans
 everything else as text, including lockfiles and dotfiles such as `.env`.
+Zip archives are the one binary-looking exception: they are opened and
+inspected as described below, because an opaque archive is exactly
+where a payload can hide from a line-based scanner.
 
 Git history mode shells out to `git log -p` and scans the lines each
 commit added. It needs `git` on the PATH. Merge commits produce no diff
@@ -94,7 +103,7 @@ a merge are found in the branch commits that introduced them.
 
 ### Rules
 
-The registry holds 94 pattern rules. Run `secretsweep --list-rules` for
+The registry holds 99 pattern rules. Run `secretsweep --list-rules` for
 the full table. Summary by area:
 
 | Area | Rules |
@@ -108,11 +117,50 @@ the full table. Summary by area:
 | Database connection strings | 7 |
 | Private key blocks | 7 |
 | Tokens, headers and generic assignments | 9 |
-| Other platforms (Shopify, Heroku, Cloudflare, Vault, Grafana, and more) | 17 |
-| **Total** | **94** |
+| Other platforms (Shopify, Heroku, Cloudflare, Vault, Grafana, auth.gg, and more) | 18 |
+| Cryptocurrency addresses (informational, Low severity) | 2 |
+| Malware indicators (private-key persistence, file-host lure links) | 2 |
+| **Total** | **99** |
 
 Rules are line-based regular expressions (the Rust `regex` engine, so no
 lookahead). Each rule reports the line and column of the secret value.
+
+### Archive inspection
+
+Zip archives (detected by `.zip` extension or by their PK header) are
+opened instead of skipped. This exists because a real malware lure
+found in the wild hid everything that mattered inside a zip: a
+launcher script, a bundled executable, and a script payload disguised
+as a text file. A scanner that treats archives as opaque binaries
+sees none of that.
+
+What happens inside an archive:
+
+- Text-like entries are scanned with the same pattern and entropy
+  rules as loose files. Findings are reported with paths like
+  `bundle.zip!/inner/config.txt`, so the entry can be located.
+- A structural warning (rule id `ARCHIVE-EXEC`) fires when an archive
+  contains an executable file (`.exe`, `.dll`, `.scr`, `.com`,
+  `.msi`, `.sys`) together with a launcher or script file (`.cmd`,
+  `.bat`, `.ps1`, `.vbs`, `.js` and relatives), or with a large
+  single-line text file of 50 KB or more, a common disguised-script
+  shape. Archives of documents or source code, with no executable
+  inside, do not trigger it.
+- An archive that cannot be opened, or whose entries cannot be read
+  (corrupt, encrypted, or an unsupported compression method), is
+  reported once as uninspectable (rule id `ARCHIVE-UNREADABLE`, Low
+  severity) instead of failing the scan.
+
+Safety caps, so a hostile or accidental zip bomb cannot exhaust
+memory: at most 512 entries are examined, at most the `--max-size`
+cap (1 MiB by default) is extracted per entry, and at most 16 times
+that across one archive. Entries are read in memory only; nothing is
+written to disk and nothing is executed.
+
+Inspection is one level deep: a zip stored inside another zip is
+listed but not opened, and only the ZIP format is inspected. Other
+archive formats (`.tar`, `.7z`, `.rar`, and similar) are still
+skipped as binary files for now.
 
 ### Entropy detection, honestly
 
@@ -182,7 +230,7 @@ jobs:
           fetch-depth: 0   # full history if you also scan with --git
       - uses: dtolnay/rust-toolchain@stable
       - name: Install SecretSweep
-        run: cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.0.0
+        run: cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.1.0
       - name: Scan worktree
         run: secretsweep --format sarif --fail-on high . > secretsweep.sarif
       - name: Upload SARIF
@@ -202,7 +250,7 @@ Framework setup:
 ```yaml
 # .pre-commit-config.yaml in your project
 - repo: https://github.com/RahilSahu/secretsweep
-  rev: v1.0.0
+  rev: v1.1.0
   hooks:
     - id: secretsweep
 ```
@@ -224,9 +272,17 @@ the fail-on severity exists.
 
 - Line-based scanning: a secret split across two lines is not detected.
 - Worktree mode skips binary files and files over the size cap; both are
-  counted in the summary line.
+  counted in the summary line. Zip archives are inspected instead of
+  skipped, within the caps described above.
+- Archive inspection covers ZIP only, one level deep. Encrypted
+  archives and encrypted entries cannot be read and are reported as
+  uninspectable; their contents are not scanned, and no scanner can
+  judge the intent of a payload whose strings only decrypt at
+  runtime.
 - Git history mode does not cover merge commits (see above) and needs
-  the `git` CLI installed.
+  the `git` CLI installed. Archives committed to history are not
+  opened in this mode; history mode scans the text lines each commit
+  added.
 - In git history mode, file paths that git quotes (paths with unusual
   characters) may be displayed with their quotes.
 
