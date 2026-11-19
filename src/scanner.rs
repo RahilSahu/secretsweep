@@ -7,7 +7,13 @@
 //! dependency or build output directories. Lockfiles are *not*
 //! skipped: they are text and have historically contained committed
 //! registry tokens.
+//!
+//! Zip archives are not skipped as binaries: they are opened and
+//! inspected by the `archive` module (one level deep, with size
+//! caps), because an opaque archive is exactly where a payload can
+//! hide from a line-based scanner.
 
+use crate::archive;
 use crate::finding::Finding;
 use crate::scanline::LineScanner;
 use ignore::WalkBuilder;
@@ -74,6 +80,12 @@ fn scan_file(
     };
     if (data.len() as u64) > opts.max_bytes {
         stats.files_skipped_oversize += 1;
+        return;
+    }
+    if archive::is_zip(path, &data) {
+        stats.files_scanned += 1;
+        let name = display_path(path);
+        findings.extend(archive::inspect_zip(&name, &data, scanner, opts.max_bytes));
         return;
     }
     if is_binary(&data) {

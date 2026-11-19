@@ -844,3 +844,96 @@ rule_case!(
     concat!("token = \"dapi", "0123456789abcdef0123456789abcdef", "\""),
     "token = \"dapishort\""
 );
+
+// ---------------- Licensing platforms ----------------
+rule_case!(
+    ss095_auth_gg_secret,
+    "SS095",
+    concat!(
+        "// auth.gg application secret = \"",
+        "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+        "\""
+    ),
+    "auth.gg is a licensing platform for software sellers"
+);
+
+// ---------------- Cryptocurrency addresses ----------------
+rule_case!(
+    ss096_ethereum_address,
+    "SS096",
+    concat!(
+        "payout_address = \"0x",
+        "de0B295669a9FD93d5F28D9Ec85E40f4cb697BAe",
+        "\""
+    ),
+    "commit = \"de0b295669a9fd93d5f28d9ec85e40f4cb697bae\""
+);
+rule_case!(
+    ss097_bitcoin_address,
+    "SS097",
+    "payout = \"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\"",
+    concat!(
+        "payout = \"0x",
+        "de0B295669a9FD93d5F28D9Ec85E40f4cb697BAe",
+        "\""
+    )
+);
+
+// ---------------- Malware indicators ----------------
+rule_case!(
+    ss098_private_key_persistence,
+    "SS098",
+    "fs::write(&path, &pk_hex).unwrap();",
+    "let pk_hex = derive_key(&seed);"
+);
+rule_case!(
+    ss099_file_host_archive_link,
+    "SS099",
+    "Download: https://www.4sync.com/zip/AbCdEfGh/Project_V193.html",
+    "https://github.com/example/project/releases/download/v1.0/tool.zip"
+);
+
+#[test]
+fn ss096_longer_hex_after_0x_is_not_an_address() {
+    // 0x plus 64 hex characters is private-key length, not an
+    // address; the word boundary must reject it.
+    let line = concat!(
+        "value = \"0x",
+        "0123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef",
+        "\""
+    );
+    assert!(!has_rule(line, "SS096"));
+}
+
+#[test]
+fn ss097_bech32_address_matches() {
+    // BIP-173 test vector address.
+    assert!(has_rule(
+        "payout = \"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq\"",
+        "SS097"
+    ));
+}
+
+#[test]
+fn ss098_write_without_key_material_is_clean() {
+    assert!(!has_rule("fs::write(&path, &report).unwrap();", "SS098"));
+    assert!(!has_rule(
+        "fs.writeFileSync(\"notes.txt\", JSON.stringify(privateNotes));",
+        "SS098"
+    ));
+}
+
+#[test]
+fn ss098_javascript_write_of_a_private_key_matches() {
+    assert!(has_rule(
+        "fs.writeFileSync(\"key.txt\", privateKey);",
+        "SS098"
+    ));
+}
+
+#[test]
+fn ss099_file_host_homepage_alone_is_clean() {
+    assert!(!has_rule("mirror: https://www.4sync.com/", "SS099"));
+    assert!(!has_rule("docs at https://www.sendspace.com/help", "SS099"));
+}

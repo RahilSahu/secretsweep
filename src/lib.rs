@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod baseline;
 pub mod cli;
 pub mod config;

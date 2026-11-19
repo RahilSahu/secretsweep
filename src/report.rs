@@ -124,6 +124,28 @@ fn sarif_rules() -> Vec<Value> {
             "tags": ["security", "secrets", "entropy", "heuristic"],
         },
     }));
+    out.push(json!({
+        "id": rules::ARCHIVE_EXEC_RULE_ID,
+        "name": rules::ARCHIVE_EXEC_RULE_NAME,
+        "shortDescription": { "text": "Archive contains executable and launcher or script files" },
+        "fullDescription": { "text": "A zip archive pairing an executable with a launcher or script file, or with a large single-line text file. Inspect before running anything from the archive." },
+        "defaultConfiguration": { "level": "error" },
+        "properties": {
+            "security-severity": "8.0",
+            "tags": ["security", "archive", "malware-indicator"],
+        },
+    }));
+    out.push(json!({
+        "id": rules::ARCHIVE_UNREADABLE_RULE_ID,
+        "name": rules::ARCHIVE_UNREADABLE_RULE_NAME,
+        "shortDescription": { "text": "Archive could not be inspected" },
+        "fullDescription": { "text": "A zip archive that could not be opened or fully read (corrupt, encrypted or unsupported compression). Unexamined contents were not scanned." },
+        "defaultConfiguration": { "level": "note" },
+        "properties": {
+            "security-severity": "2.0",
+            "tags": ["security", "archive"],
+        },
+    }));
     out
 }
 

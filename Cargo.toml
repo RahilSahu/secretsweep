@@ -1,6 +1,6 @@
 [package]
 name = "secretsweep"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 description = "Offline secrets scanner for repositories and CI: provider pattern rules, entropy detection, git history scanning, baselines, JSON and SARIF output."
@@ -16,6 +16,7 @@ serde_json = "1"
 ignore = "0.4"
 toml = "0.8"
 sha2 = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -117,6 +117,13 @@ fn print_rules() {
         rules::ENTROPY_RULE_NAME,
         rules::ENTROPY_RULE_ID
     );
+    println!(
+        "Plus structural zip archive checks: {} ({}) and {} ({})",
+        rules::ARCHIVE_EXEC_RULE_NAME,
+        rules::ARCHIVE_EXEC_RULE_ID,
+        rules::ARCHIVE_UNREADABLE_RULE_NAME,
+        rules::ARCHIVE_UNREADABLE_RULE_ID
+    );
 }
 
 pub fn run() -> i32 {

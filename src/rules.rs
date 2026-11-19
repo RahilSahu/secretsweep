@@ -74,6 +74,16 @@ pub const ENTROPY_RULE_ID: &str = "ENTROPY";
 pub const ENTROPY_RULE_NAME: &str = "high-entropy-string";
 pub const ENTROPY_PROVIDER: &str = "Entropy";
 
+/// Rule ids for the structural zip archive checks in `archive.rs`.
+/// Like entropy, these are not line patterns, so they live outside
+/// `RULES`; the ids are stable so baselines and allowlists can refer
+/// to them.
+pub const ARCHIVE_EXEC_RULE_ID: &str = "ARCHIVE-EXEC";
+pub const ARCHIVE_EXEC_RULE_NAME: &str = "archive-executable-and-launcher";
+pub const ARCHIVE_UNREADABLE_RULE_ID: &str = "ARCHIVE-UNREADABLE";
+pub const ARCHIVE_UNREADABLE_RULE_NAME: &str = "archive-uninspectable";
+pub const ARCHIVE_PROVIDER: &str = "Archive";
+
 const RULES: &[Rule] = &[
     // ---------------- AWS ----------------
     Rule {
@@ -934,6 +944,58 @@ const RULES: &[Rule] = &[
         severity: Severity::High,
         description: "Databricks personal access token",
         pattern: r##"dapi[0-9a-f]{32}"##,
+        filter_placeholders: false,
+    },
+    // ---------------- Licensing platforms ----------------
+    Rule {
+        id: "SS095",
+        name: "auth-gg-secret",
+        provider: "auth.gg",
+        severity: Severity::High,
+        description: "auth.gg application secret or API key in an assignment near an auth.gg reference",
+        pattern: r##"(?i)auth[-_. ]?gg\b.{0,80}?(?:secret|api[_-]?key|license[_-]?key)\s*[:=]\s*["']?(?P<secret>[A-Za-z0-9_-]{16,})"##,
+        filter_placeholders: true,
+    },
+    // ---------------- Cryptocurrency addresses ----------------
+    // Addresses are public identifiers, not secrets. They are Low
+    // severity and informational: the point is that a hardcoded
+    // payout or recipient address in source becomes visible in
+    // review instead of surfacing only as generic entropy noise.
+    Rule {
+        id: "SS096",
+        name: "ethereum-address",
+        provider: "Crypto",
+        severity: Severity::Low,
+        description: "Ethereum address (0x plus 40 hex characters); informational, addresses are public identifiers",
+        pattern: r##"\b0x[0-9a-fA-F]{40}\b"##,
+        filter_placeholders: false,
+    },
+    Rule {
+        id: "SS097",
+        name: "bitcoin-address",
+        provider: "Crypto",
+        severity: Severity::Low,
+        description: "Bitcoin address (legacy, P2SH or bech32 shape); informational, addresses are public identifiers",
+        pattern: r##"\b(?:[13][1-9A-HJ-NP-Za-km-z]{25,34}|bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,59})\b"##,
+        filter_placeholders: false,
+    },
+    // ---------------- Malware indicators ----------------
+    Rule {
+        id: "SS098",
+        name: "private-key-persistence",
+        provider: "Private Key",
+        severity: Severity::High,
+        description: "Code writes private key material (private key, seed phrase or mnemonic) to a file; same-line heuristic, verify the destination is an encrypted keystore and not plaintext storage",
+        pattern: r##"(?i)(?:\b(?:private[_-]?key|privkey|pk_hex|seed[_-]?phrase|mnemonic)\b.{0,160}?\b(?:fs::write|write_all|file::create|fs\.writefile(?:sync)?|writefile(?:sync)?|files\.write|os\.writefile|ioutil\.writefile|file_put_contents|fwrite|ofstream)\b|\b(?:fs::write|write_all|file::create|fs\.writefile(?:sync)?|writefile(?:sync)?|files\.write|os\.writefile|ioutil\.writefile|file_put_contents|fwrite|ofstream)\b.{0,160}?\b(?:private[_-]?key|privkey|pk_hex|seed[_-]?phrase|mnemonic)\b)"##,
+        filter_placeholders: false,
+    },
+    Rule {
+        id: "SS099",
+        name: "file-host-archive-link",
+        provider: "File Host",
+        severity: Severity::Low,
+        description: "Download link to an archive on a file-hosting service frequently abused for malware lures (including password-protected archive campaigns); verify before trusting",
+        pattern: r##"(?i)https?://(?:www\.)?(?:4sync\.com|anonfiles\.com|bayfiles\.com|sendspace\.com|zippyshare\.com)(?:/[^\s)"'<>]*?(?:\.zip|\.rar|\.7z)|/zip/|/archive/)[^\s)"'<>]*"##,
         filter_placeholders: false,
     },
 ];
