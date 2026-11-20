@@ -73,6 +73,52 @@ fn oversize_files_are_skipped_and_counted() {
     assert!(findings.is_empty());
 }
 
+fn make_zip_bytes() -> Vec<u8> {
+    use std::io::Write as _;
+    let mut buf = std::io::Cursor::new(Vec::new());
+    {
+        let mut writer = zip::ZipWriter::new(&mut buf);
+        writer
+            .start_file("payload.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"harmless filler text\n").unwrap();
+        writer.finish().unwrap();
+    }
+    buf.into_inner()
+}
+
+#[test]
+fn oversize_zip_is_reported_uninspectable_not_silent() {
+    // Wave 2 of the 2026-11-20 hunt missed a packed cheat bundle
+    // because the archive was over the size cap and skipped
+    // silently. It must now surface as ARCHIVE-UNREADABLE while
+    // the oversize skip counter still records the skip.
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "bundle.zip", &make_zip_bytes());
+    let opts = ScanOptions { max_bytes: 32 };
+    let (findings, stats) = scan_path(dir.path(), &LineScanner::default(), &opts).unwrap();
+    assert_eq!(stats.files_skipped_oversize, 1);
+    let f = findings
+        .iter()
+        .find(|f| f.rule_id == "ARCHIVE-UNREADABLE")
+        .expect("an oversize zip must produce an uninspectable finding");
+    assert!(
+        f.description.contains("not inspected due to size"),
+        "description: {}",
+        f.description
+    );
+}
+
+#[test]
+fn oversize_non_archive_stays_silent() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "blob.bin", b"0123456789abcdef");
+    let opts = ScanOptions { max_bytes: 8 };
+    let (findings, stats) = scan_path(dir.path(), &LineScanner::default(), &opts).unwrap();
+    assert_eq!(stats.files_skipped_oversize, 1);
+    assert!(findings.is_empty());
+}
+
 #[test]
 fn dependency_and_vcs_directories_are_skipped() {
     let dir = tempfile::tempdir().unwrap();

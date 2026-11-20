@@ -21,7 +21,7 @@ characters of a value, plus a hash fingerprint.
 
 ## What it does
 
-- **99 pattern rules** for known providers and formats (AWS, GitHub,
+- **100 pattern rules** for known providers and formats (AWS, GitHub,
   Stripe, OpenAI, database connection strings, private key blocks, and
   many more), each with a severity and a plain-language description.
 - **Zip archive inspection**: archives are opened, not skipped as
@@ -30,6 +30,11 @@ characters of a value, plus a hash fingerprint.
   pairs an executable with a launcher or script file raises a
   dedicated warning. That pairing is how a real malware lure hid its
   payload from the v1.0 scanner.
+- **Malware lure indicators**: structural checks beyond secrets. A
+  REDIRECTOR warning fires when one HTML or JavaScript file combines
+  a fetch or XHR request, an `atob()` decode and a location redirect;
+  a rule flags instructions to disable antivirus protection; and link
+  checks cover file-host and shortener download lures.
 - **Entropy detection**: a second, heuristic engine that measures the
   Shannon entropy of candidate strings (quoted literals and assignment
   values) and flags likely random secrets that no pattern knows about.
@@ -52,7 +57,7 @@ and, for history mode, the `git` CLI.
 Install from source:
 
 ```console
-cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.1.0
+cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.2.0
 ```
 
 Or build a checkout:
@@ -103,7 +108,7 @@ a merge are found in the branch commits that introduced them.
 
 ### Rules
 
-The registry holds 99 pattern rules. Run `secretsweep --list-rules` for
+The registry holds 100 pattern rules. Run `secretsweep --list-rules` for
 the full table. Summary by area:
 
 | Area | Rules |
@@ -119,8 +124,8 @@ the full table. Summary by area:
 | Tokens, headers and generic assignments | 9 |
 | Other platforms (Shopify, Heroku, Cloudflare, Vault, Grafana, auth.gg, and more) | 18 |
 | Cryptocurrency addresses (informational, Low severity) | 2 |
-| Malware indicators (private-key persistence, file-host lure links) | 2 |
-| **Total** | **99** |
+| Malware indicators (private-key persistence, file-host lure links, antivirus-disable instructions) | 3 |
+| **Total** | **100** |
 
 Rules are line-based regular expressions (the Rust `regex` engine, so no
 lookahead). Each rule reports the line and column of the secret value.
@@ -149,7 +154,10 @@ What happens inside an archive:
 - An archive that cannot be opened, or whose entries cannot be read
   (corrupt, encrypted, or an unsupported compression method), is
   reported once as uninspectable (rule id `ARCHIVE-UNREADABLE`, Low
-  severity) instead of failing the scan.
+  severity) instead of failing the scan. An archive that is itself
+  over the scan size cap gets the same finding, stating that it was
+  not inspected due to size, instead of the silent skip earlier
+  versions made.
 
 Safety caps, so a hostile or accidental zip bomb cannot exhaust
 memory: at most 512 entries are examined, at most the `--max-size`
@@ -161,6 +169,37 @@ Inspection is one level deep: a zip stored inside another zip is
 listed but not opened, and only the ZIP format is inspected. Other
 archive formats (`.tar`, `.7z`, `.rar`, and similar) are still
 skipped as binary files for now.
+
+### Lure and redirector detection
+
+Three checks target the delivery side of malware lure repos rather
+than secrets. All three came out of a November 2026 hunt through
+fake cheat and airdrop repos:
+
+- `REDIRECTOR` (High) fires when a single HTML or JavaScript file
+  combines all three signals of the remote-config redirector kit
+  seen in two campaigns, one of them impersonating Adobe: a
+  `fetch()` call with a literal URL (or an `XMLHttpRequest` being
+  opened), an `atob()` base64 decode, and a location redirect
+  assignment (`window.location`, `location.href`,
+  `location.replace`). The kit fetches its real destination from a
+  config file on another account, so the lure page itself contains
+  no malicious URL to match. One or two signals never fire; each is
+  common in legitimate pages. The check also runs on HTML and
+  JavaScript entries inside zip archives.
+- `SS099` (Low) flags download links on file-hosting services
+  frequently abused for lures (4sync, anonfiles, bayfiles,
+  sendspace, zippyshare), including direct-download paths such as
+  `/file/` and `/directdownload/` and `download` query parameters
+  with no archive extension, and URL shorteners (cutt.ly, bit.ly,
+  tinyurl.com, rb.gy) when the same line also carries a download
+  signal: the words download, installer or setup, or an archive
+  extension. A bare shortener link does not fire.
+- `SS100` (Medium) flags instructions to disable antivirus
+  protection ("disable Defender", "turn off real-time protection",
+  "switch off Windows Security", "disable your antivirus"), the
+  standard coaching line in lure install guides. Mentions in a
+  detection context ("detected by Windows Defender") do not fire.
 
 ### Entropy detection, honestly
 
@@ -230,7 +269,7 @@ jobs:
           fetch-depth: 0   # full history if you also scan with --git
       - uses: dtolnay/rust-toolchain@stable
       - name: Install SecretSweep
-        run: cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.1.0
+        run: cargo install --git https://github.com/RahilSahu/secretsweep --tag v1.2.0
       - name: Scan worktree
         run: secretsweep --format sarif --fail-on high . > secretsweep.sarif
       - name: Upload SARIF
@@ -250,7 +289,7 @@ Framework setup:
 ```yaml
 # .pre-commit-config.yaml in your project
 - repo: https://github.com/RahilSahu/secretsweep
-  rev: v1.1.0
+  rev: v1.2.0
   hooks:
     - id: secretsweep
 ```
@@ -283,6 +322,10 @@ the fail-on severity exists.
   the `git` CLI installed. Archives committed to history are not
   opened in this mode; history mode scans the text lines each commit
   added.
+- The redirector check reads one file at a time and never fetches
+  anything: it cannot follow a redirector, download its remote
+  config, or judge where the redirect leads, and a kit split across
+  several files will not fire it.
 - In git history mode, file paths that git quotes (paths with unusual
   characters) may be displayed with their quotes.
 

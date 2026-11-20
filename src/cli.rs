@@ -118,11 +118,13 @@ fn print_rules() {
         rules::ENTROPY_RULE_ID
     );
     println!(
-        "Plus structural zip archive checks: {} ({}) and {} ({})",
+        "Plus structural checks: {} ({}), {} ({}) and {} ({})",
         rules::ARCHIVE_EXEC_RULE_NAME,
         rules::ARCHIVE_EXEC_RULE_ID,
         rules::ARCHIVE_UNREADABLE_RULE_NAME,
-        rules::ARCHIVE_UNREADABLE_RULE_ID
+        rules::ARCHIVE_UNREADABLE_RULE_ID,
+        rules::REDIRECTOR_RULE_NAME,
+        rules::REDIRECTOR_RULE_ID
     );
 }
 

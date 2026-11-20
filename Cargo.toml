@@ -1,6 +1,6 @@
 [package]
 name = "secretsweep"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 license = "MIT"
 description = "Offline secrets scanner for repositories and CI: provider pattern rules, entropy detection, git history scanning, baselines, JSON and SARIF output."

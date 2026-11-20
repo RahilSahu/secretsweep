@@ -22,6 +22,7 @@
 //! memory only; nothing is ever written to disk or executed.
 
 use crate::finding::{fingerprint, Finding, FindingKind, Severity};
+use crate::redirector;
 use crate::rules::{ARCHIVE_EXEC_RULE_ID, ARCHIVE_PROVIDER, ARCHIVE_UNREADABLE_RULE_ID};
 use crate::scanline::LineScanner;
 use std::io::{Cursor, Read};
@@ -112,6 +113,22 @@ fn unreadable_finding(file: &str, detail: &str) -> Finding {
     )
 }
 
+/// Finding for an archive that was skipped without inspection
+/// because the file itself exceeds the scan size cap. Before
+/// v1.2 this skip was silent; wave 2 of the 2026-11-20 hunt
+/// missed a packed cheat bundle exactly this way.
+pub fn oversize_finding(file: &str, size: u64, cap: u64) -> Finding {
+    structural_finding(
+        file,
+        ARCHIVE_UNREADABLE_RULE_ID,
+        Severity::Low,
+        format!(
+            "Archive was not inspected due to size: the file is {size} bytes, over the scan size cap of {cap} bytes, so its contents were not scanned"
+        ),
+        &format!("oversize archive: {size} bytes over cap {cap}"),
+    )
+}
+
 /// Inspect one zip archive's bytes. `display` is the path shown in
 /// reports for the archive itself; entry findings use
 /// `display!/entry-name`. `max_bytes` is the scanner's per-file size
@@ -194,6 +211,14 @@ pub fn inspect_zip(
                 let entry_display = format!("{display}!/{name}");
                 for (n, line) in text.lines().enumerate() {
                     findings.extend(scanner.scan_line(&entry_display, n + 1, line, None));
+                }
+                // The redirector signature spans lines, so HTML
+                // and JavaScript entries also get the whole-file
+                // structural check.
+                if redirector::is_web_file(&name) {
+                    if let Some(f) = redirector::check_file(&entry_display, &text) {
+                        findings.push(f);
+                    }
                 }
             }
             Err(_) => {
@@ -309,5 +334,14 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, ARCHIVE_UNREADABLE_RULE_ID);
         assert_eq!(findings[0].severity, Severity::Low);
+    }
+
+    #[test]
+    fn oversize_finding_names_the_size_reason() {
+        let f = oversize_finding("big.zip", 3_000_000, 1_048_576);
+        assert_eq!(f.rule_id, ARCHIVE_UNREADABLE_RULE_ID);
+        assert_eq!(f.severity, Severity::Low);
+        assert!(f.description.contains("not inspected due to size"));
+        assert!(f.description.contains("3,000,000") || f.description.contains("3000000"));
     }
 }

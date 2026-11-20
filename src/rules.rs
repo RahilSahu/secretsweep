@@ -84,6 +84,14 @@ pub const ARCHIVE_UNREADABLE_RULE_ID: &str = "ARCHIVE-UNREADABLE";
 pub const ARCHIVE_UNREADABLE_RULE_NAME: &str = "archive-uninspectable";
 pub const ARCHIVE_PROVIDER: &str = "Archive";
 
+/// Rule id for the structural remote-config redirector check in
+/// `redirector.rs`. Like the archive checks, this is a whole-file
+/// structural heuristic, not a line pattern, so it lives outside
+/// `RULES`.
+pub const REDIRECTOR_RULE_ID: &str = "REDIRECTOR";
+pub const REDIRECTOR_RULE_NAME: &str = "remote-config-redirector";
+pub const REDIRECTOR_PROVIDER: &str = "Redirector";
+
 const RULES: &[Rule] = &[
     // ---------------- AWS ----------------
     Rule {
@@ -994,8 +1002,17 @@ const RULES: &[Rule] = &[
         name: "file-host-archive-link",
         provider: "File Host",
         severity: Severity::Low,
-        description: "Download link to an archive on a file-hosting service frequently abused for malware lures (including password-protected archive campaigns); verify before trusting",
-        pattern: r##"(?i)https?://(?:www\.)?(?:4sync\.com|anonfiles\.com|bayfiles\.com|sendspace\.com|zippyshare\.com)(?:/[^\s)"'<>]*?(?:\.zip|\.rar|\.7z)|/zip/|/archive/)[^\s)"'<>]*"##,
+        description: "Download link to a file-hosting service frequently abused for malware lures (archive paths, direct-download paths, or a shortener link with a download signal on the same line); verify before trusting",
+        pattern: r##"(?i)(?:https?://(?:www\.)?(?:4sync\.com|anonfiles\.com|bayfiles\.com|sendspace\.com|zippyshare\.com)(?:[^\s)"'<>]*?(?:\.zip|\.rar|\.7z|/(?:zip|archive|file|directdownload|download)/)|[^\s)"'<>]*?[?&]download(?:=[^\s)"'<>]*)?)[^\s)"'<>]*|(?:\b(?:download|installer|setup)\b|\.(?:zip|rar|7z)\b).{0,120}?https?://(?:cutt\.ly|bit\.ly|tinyurl\.com|rb\.gy)/[^\s)"'<>]+|https?://(?:cutt\.ly|bit\.ly|tinyurl\.com|rb\.gy)/[^\s)"'<>]+.{0,120}?(?:\b(?:download|installer|setup)\b|\.(?:zip|rar|7z)\b)|https?://(?:cutt\.ly|bit\.ly|tinyurl\.com|rb\.gy)/[^\s)"'<>]*?(?:\b(?:download|installer|setup)\b|\.(?:zip|rar|7z)\b)[^\s)"'<>]*)"##,
+        filter_placeholders: false,
+    },
+    Rule {
+        id: "SS100",
+        name: "antivirus-disable-instruction",
+        provider: "Malware Indicator",
+        severity: Severity::Medium,
+        description: "Instructions to disable antivirus protection (Windows Defender, real-time protection or antivirus software); a hallmark of malware lure install guides, verify the context before trusting the document",
+        pattern: r##"(?i)\b(?:disable|turn off|switch off|deactivate)\s+(?:the\s+|your\s+)?(?:windows\s+defender|defender|windows\s+security|real[-\s]time\s+protection|antivirus(?:\s+protection)?)\b"##,
         filter_placeholders: false,
     },
 ];

@@ -937,3 +937,96 @@ fn ss099_file_host_homepage_alone_is_clean() {
     assert!(!has_rule("mirror: https://www.4sync.com/", "SS099"));
     assert!(!has_rule("docs at https://www.sendspace.com/help", "SS099"));
 }
+
+#[test]
+fn ss099_direct_download_paths_without_archive_extension_match() {
+    // Wave 2 miss: a 4sync directDownload URL carries no archive
+    // extension, and a sendspace /file/ path is the download itself.
+    assert!(has_rule(
+        "Get it: https://www.4sync.com/web/directDownload/AbCdEfGh/Project_V193",
+        "SS099"
+    ));
+    assert!(has_rule(
+        "Mirror: https://www.sendspace.com/file/xYz123Ab",
+        "SS099"
+    ));
+    assert!(has_rule(
+        "Link: https://anonfiles.com/d/AbCdEfGh?download=1",
+        "SS099"
+    ));
+}
+
+#[test]
+fn ss099_shortener_with_a_download_signal_matches() {
+    // The Adobe lure pushed its download through a shortener with
+    // the signal in the surrounding text, not in the URL.
+    assert!(has_rule("Download: https://cutt.ly/AbC123x", "SS099"));
+    assert!(has_rule(
+        "Mirror (installer): https://rb.gy/xy12ab",
+        "SS099"
+    ));
+    assert!(has_rule(
+        "Get it at https://tinyurl.com/abcd1234, setup included",
+        "SS099"
+    ));
+    assert!(has_rule(
+        "Loader.zip mirror: https://bit.ly/3XyZ987",
+        "SS099"
+    ));
+}
+
+#[test]
+fn ss099_bare_shortener_without_a_signal_is_clean() {
+    assert!(!has_rule("Our page: https://bit.ly/3XyZ987", "SS099"));
+    assert!(!has_rule("https://cutt.ly/AbC123x", "SS099"));
+    assert!(!has_rule(
+        "Release notes moved: https://tinyurl.com/abcd1234",
+        "SS099"
+    ));
+}
+
+// ---------------- Antivirus-disable instructions ----------------
+rule_case!(
+    ss100_antivirus_disable_instruction,
+    "SS100",
+    "Step 4: disable Defender antivirus protection, then run the installer",
+    "Windows Defender detected the file and blocked it"
+);
+
+#[test]
+fn ss100_instruction_variants_match() {
+    assert!(has_rule(
+        "Please turn off real-time protection first",
+        "SS100"
+    ));
+    assert!(has_rule(
+        "Disable your antivirus before installing",
+        "SS100"
+    ));
+    assert!(has_rule(
+        "switch off Windows Security, then install",
+        "SS100"
+    ));
+    assert!(has_rule(
+        "You must disable Windows Defender real-time protection",
+        "SS100"
+    ));
+    assert!(has_rule("Deactivate the antivirus and retry", "SS100"));
+}
+
+#[test]
+fn ss100_detection_context_is_clean() {
+    assert!(!has_rule("Detected by Windows Defender", "SS100"));
+    assert!(!has_rule(
+        "The antivirus flagged the download as a trojan",
+        "SS100"
+    ));
+    assert!(!has_rule(
+        "Keep your antivirus enabled and up to date",
+        "SS100"
+    ));
+    assert!(!has_rule(
+        "Antivirus protection is disabled by group policy",
+        "SS100"
+    ));
+}

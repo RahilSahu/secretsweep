@@ -157,7 +157,7 @@ fn corrupt_zip_is_uninspectable_and_the_scan_continues() {
 }
 
 #[test]
-fn oversized_zip_is_skipped_and_counted() {
+fn oversized_zip_is_skipped_counted_and_reported() {
     let dir = tempfile::tempdir().unwrap();
     // Random-looking padding so the archive itself stays large even
     // after deflate compression.
@@ -172,7 +172,18 @@ fn oversized_zip_is_skipped_and_counted() {
     write(dir.path(), "big.zip", &zip);
     let (findings, stats) = scan_with(dir.path(), 1024);
     assert_eq!(stats.files_skipped_oversize, 1);
-    assert!(findings.is_empty());
+    // Since v1.2 the skip is no longer silent: the archive surfaces
+    // as an ARCHIVE-UNREADABLE info finding saying it was not
+    // inspected due to size.
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "ARCHIVE-UNREADABLE");
+    assert!(
+        findings[0]
+            .description
+            .contains("not inspected due to size"),
+        "description: {}",
+        findings[0].description
+    );
 }
 
 #[test]

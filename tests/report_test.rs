@@ -90,12 +90,13 @@ fn sarif_report_structure_and_rule_metadata() {
     let run = &v["runs"][0];
     assert_eq!(run["tool"]["driver"]["name"], "SecretSweep");
     let rules_meta = run["tool"]["driver"]["rules"].as_array().unwrap();
-    // One metadata entry per pattern rule, plus the entropy rule
-    // and the two structural archive rules.
-    assert_eq!(rules_meta.len(), rules::rules().len() + 3);
+    // One metadata entry per pattern rule, plus the entropy rule,
+    // the two structural archive rules and the redirector rule.
+    assert_eq!(rules_meta.len(), rules::rules().len() + 4);
     assert!(rules_meta.iter().any(|r| r["id"] == "ENTROPY"));
     assert!(rules_meta.iter().any(|r| r["id"] == "ARCHIVE-EXEC"));
     assert!(rules_meta.iter().any(|r| r["id"] == "ARCHIVE-UNREADABLE"));
+    assert!(rules_meta.iter().any(|r| r["id"] == "REDIRECTOR"));
     let result = &run["results"][0];
     assert_eq!(result["ruleId"], "SS001");
     assert_eq!(result["level"], "error");

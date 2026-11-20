@@ -5,6 +5,7 @@ pub mod config;
 pub mod entropy;
 pub mod finding;
 pub mod git_scan;
+pub mod redirector;
 pub mod report;
 pub mod rules;
 pub mod scanline;

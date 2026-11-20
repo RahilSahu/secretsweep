@@ -89,7 +89,8 @@ fn list_rules_reports_the_true_count() {
     let text = stdout(&out);
     assert!(text.contains("SS001"));
     assert!(text.contains("SS099"));
-    assert!(text.contains("99 pattern rules"), "list output: {text}");
+    assert!(text.contains("SS100"));
+    assert!(text.contains("100 pattern rules"), "list output: {text}");
 }
 
 #[test]

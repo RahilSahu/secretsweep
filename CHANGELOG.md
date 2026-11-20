@@ -1,5 +1,48 @@
 # Changelog
 
+## v1.2.0
+
+Driven by a second hunt, through fake cheat and airdrop lure repos:
+nine more malicious repositories across five campaigns, including a
+GitHub Pages redirector kit shared by a crypto claimer and an Adobe
+impersonation. This release teaches the scanner the delivery-side
+patterns that hunt exposed.
+
+- New structural check: REDIRECTOR (High). Fires when a single HTML
+  or JavaScript file combines all three signals of the
+  remote-config redirector kit: a fetch() call with a literal URL
+  or an XMLHttpRequest being opened, an atob() base64 decode, and a
+  location redirect assignment (window.location, location.href,
+  location.replace). One or two signals never fire. The check runs
+  on loose files and on HTML and JavaScript entries inside zip
+  archives, and is covered end to end by a synthetic kit fixture in
+  the test suite.
+- SS099 extended. File-host lure links now also match
+  direct-download paths with no archive extension (/file/,
+  /directdownload/, /download/ segments and download query
+  parameters), and URL shorteners (cutt.ly, bit.ly, tinyurl.com,
+  rb.gy) match when the same line also carries a download signal:
+  the words download, installer or setup, or an archive extension.
+  A bare shortener link still does not fire.
+- Oversize archives are no longer skipped silently. A zip over the
+  scan size cap now produces an ARCHIVE-UNREADABLE info finding
+  stating it was not inspected due to size; the oversize skip
+  counter still records the skip. Wave 2 of the hunt missed a
+  packed cheat bundle exactly this way.
+- New pattern rule (100 total, up from 99): SS100 (Medium)
+  antivirus-disable instruction: text or markdown lines telling the
+  reader to disable Defender, turn off real-time protection,
+  switch off Windows Security or disable their antivirus. Mentions
+  in a detection context ("detected by Windows Defender") do not
+  fire.
+- 197 tests (up from 177).
+
+What v1.2 still cannot do: judge the intent of an encrypted
+payload whose strings decrypt only at runtime, follow a
+redirector or fetch its remote config to see where it leads,
+inspect encrypted archives, open archives nested inside other
+archives, or inspect non-ZIP archive formats.
+
 ## v1.1.0
 
 Driven by a real find: a malicious repository whose payload (a

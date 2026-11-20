@@ -146,6 +146,17 @@ fn sarif_rules() -> Vec<Value> {
             "tags": ["security", "archive"],
         },
     }));
+    out.push(json!({
+        "id": rules::REDIRECTOR_RULE_ID,
+        "name": rules::REDIRECTOR_RULE_NAME,
+        "shortDescription": { "text": "Remote-config redirector pattern (fetch or XHR, atob decode, location redirect)" },
+        "fullDescription": { "text": "An HTML or JavaScript file combining a fetch or XHR request, an atob() base64 decode and a location redirect assignment: the remote-config redirector pattern used by lure download portals, whose destination is fetched from a config file and can be changed without editing the page." },
+        "defaultConfiguration": { "level": "error" },
+        "properties": {
+            "security-severity": "8.0",
+            "tags": ["security", "redirector", "malware-indicator"],
+        },
+    }));
     out
 }
 

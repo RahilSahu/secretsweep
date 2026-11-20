@@ -15,6 +15,7 @@
 
 use crate::archive;
 use crate::finding::Finding;
+use crate::redirector;
 use crate::scanline::LineScanner;
 use ignore::WalkBuilder;
 use std::fs;
@@ -80,6 +81,17 @@ fn scan_file(
     };
     if (data.len() as u64) > opts.max_bytes {
         stats.files_skipped_oversize += 1;
+        // An oversize zip used to vanish silently here, which is
+        // how a packed cheat bundle escaped the archive checks in
+        // the 2026-11-20 hunt. Report it as uninspectable instead:
+        // the skip counter still records that it was not scanned.
+        if archive::is_zip(path, &data) {
+            findings.push(archive::oversize_finding(
+                &display_path(path),
+                data.len() as u64,
+                opts.max_bytes,
+            ));
+        }
         return;
     }
     if archive::is_zip(path, &data) {
@@ -97,6 +109,14 @@ fn scan_file(
     let text = String::from_utf8_lossy(&data);
     for (i, line) in text.lines().enumerate() {
         findings.extend(scanner.scan_line(&name, i + 1, line, None));
+    }
+    // Whole-file structural check: the remote-config redirector
+    // signature only exists across lines, so it runs on the full
+    // text of HTML and JavaScript files after the line scan.
+    if redirector::is_web_file(&name) {
+        if let Some(f) = redirector::check_file(&name, &text) {
+            findings.push(f);
+        }
     }
 }
 
